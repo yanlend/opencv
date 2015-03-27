@@ -43,6 +43,9 @@
 #ifndef __OPENCV_PRECOMP_H__
 #define __OPENCV_PRECOMP_H__
 
+#include "opencv2/opencv_modules.hpp"
+#include "cvconfig.h"
+
 #include "opencv2/core/utility.hpp"
 #include "opencv2/core/core_c.h"
 #include "opencv2/core/cuda.hpp"
@@ -96,8 +99,6 @@ extern const float g_8x32fTab[];
 extern const ushort g_8x16uSqrTab[];
 #define CV_SQR_8U(x)  cv::g_8x16uSqrTab[(x)+255]
 
-extern const char* g_HersheyGlyphs[];
-
 extern const uchar g_Saturate8u[];
 #define CV_FAST_CAST_8U(t)   (assert(-256 <= (t) && (t) <= 512), cv::g_Saturate8u[(t)+256])
 #define CV_MIN_8U(a,b)       ((a) - CV_FAST_CAST_8U((a) - (b)))
@@ -106,7 +107,6 @@ extern const uchar g_Saturate8u[];
 
 #if defined WIN32 || defined _WIN32
 void deleteThreadAllocData();
-void deleteThreadData();
 #endif
 
 template<typename T1, typename T2=T1, typename T3=T1> struct OpAdd
@@ -192,15 +192,14 @@ struct NoVec
 extern volatile bool USE_SSE2;
 extern volatile bool USE_SSE4_2;
 extern volatile bool USE_AVX;
+extern volatile bool USE_AVX2;
 
 enum { BLOCK_SIZE = 1024 };
 
 #if defined HAVE_IPP && (IPP_VERSION_MAJOR >= 7)
 #define ARITHM_USE_IPP 1
-#define IF_IPP(then_call, else_call) then_call
 #else
 #define ARITHM_USE_IPP 0
-#define IF_IPP(then_call, else_call) else_call
 #endif
 
 inline bool checkScalar(const Mat& sc, int atype, int sckind, int akind)
@@ -233,21 +232,59 @@ inline bool checkScalar(InputArray sc, int atype, int sckind, int akind)
 
 void convertAndUnrollScalar( const Mat& sc, int buftype, uchar* scbuf, size_t blocksize );
 
-struct TLSData
+#ifdef CV_COLLECT_IMPL_DATA
+struct ImplCollector
 {
-    TLSData();
+    ImplCollector()
+    {
+        useCollection   = false;
+        implFlags       = 0;
+    }
+    bool useCollection; // enable/disable impl data collection
+
+    int implFlags;
+    std::vector<int>    implCode;
+    std::vector<String> implFun;
+
+    cv::Mutex mutex;
+};
+#endif
+
+struct CoreTLSData
+{
+    CoreTLSData() : device(0), useOpenCL(-1), useIPP(-1)
+    {
+#ifdef HAVE_TEGRA_OPTIMIZATION
+        useTegra = -1;
+#endif
+    }
+
     RNG rng;
     int device;
     ocl::Queue oclQueue;
     int useOpenCL; // 1 - use, 0 - do not use, -1 - auto/not initialized
-
-    static TLSData* get();
+    int useIPP; // 1 - use, 0 - do not use, -1 - auto/not initialized
+#ifdef HAVE_TEGRA_OPTIMIZATION
+    int useTegra; // 1 - use, 0 - do not use, -1 - auto/not initialized
+#endif
 };
 
-namespace ocl
-{
-    MatAllocator* getOpenCLAllocator();
-}
+TLSData<CoreTLSData>& getCoreTlsData();
+
+#if defined(BUILD_SHARED_LIBS)
+#if defined WIN32 || defined _WIN32 || defined WINCE
+#define CL_RUNTIME_EXPORT __declspec(dllexport)
+#elif defined __GNUC__ && __GNUC__ >= 4
+#define CL_RUNTIME_EXPORT __attribute__ ((visibility ("default")))
+#else
+#define CL_RUNTIME_EXPORT
+#endif
+#else
+#define CL_RUNTIME_EXPORT
+#endif
+
+extern bool __termination; // skip some cleanups, because process is terminating
+                           // (for example, if ExitProcess() was already called)
 
 }
 

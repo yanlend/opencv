@@ -170,7 +170,7 @@ inline string JoinPlatform(int platform)
     return result;
 }
 
-inline int SplitPlatfrom(const vector<string>& features)
+inline int SplitPlatform(const vector<string>& features)
 {
     int result = 0;
 
@@ -203,7 +203,7 @@ inline int SplitPlatfrom(const vector<string>& features)
 }
 
 /* Package naming convention
- * All parts of package name seporated by "_" symbol
+ * All parts of package name separated by "_" symbol
  * First part is base namespace.
  * Second part is version. Version starts from "v" symbol. After "v" symbol version nomber without dot symbol added.
  * If platform is known third part is platform name
@@ -302,20 +302,13 @@ PackageInfo::PackageInfo(int version, int platform, int cpu_id, std::string inst
                 }
                 #endif
             }
-            else if (ARCH_ARMv8 & CpuID)
+            #ifdef __SUPPORT_AARCH64
+            else if (ARCH_AARCH64 & CpuID)
             {
-                LOGD("PackageInfo::PackageInfo: package arch ARMv8");
-                #ifdef __SUPPORT_ARMEABI_V8
-                FullName += string("_") + ARCH_ARMv8_NAME;
-                #else
-                FullName += string("_") + ARCH_ARMv7_NAME;
-                #endif
-                //string features = JoinARMFeatures(CpuID);
-                //if (!features.empty())
-                //{
-                    //    FullName += string("_") + features;
-                //}
+                LOGD("PackageInfo::PackageInfo: package arch AARCH64");
+                FullName += string("_") + ARCH_AARCH64_NAME;
             }
+            #endif
             #ifdef __SUPPORT_MIPS
             else if (ARCH_MIPS & CpuID)
             {
@@ -419,7 +412,7 @@ InstallPath(install_path)
             return;
         }
 
-        Platform = SplitPlatfrom(features);
+        Platform = SplitPlatform(features);
         if (PLATFORM_UNKNOWN != Platform)
         {
             switch (Platform)
@@ -460,14 +453,22 @@ InstallPath(install_path)
             {
                 CpuID = ARCH_ARMv7 | SplitARMFeatures(features);
             }
+            #ifdef __SUPPORT_AARCH64
+            else if (ARCH_AARCH64_NAME == features[2])
+            {
+                CpuID = ARCH_AARCH64 | SplitARMFeatures(features);
+            }
+            #endif
             else if (ARCH_X86_NAME == features[2])
             {
                 CpuID = ARCH_X86 | SplitIntelFeatures(features);
             }
+            #ifdef __SUPPORT_INTEL_x64
             else if (ARCH_X64_NAME == features[2])
             {
                 CpuID = ARCH_X64 | SplitIntelFeatures(features);
             }
+            #endif
             #ifdef __SUPPORT_MIPS
             else if (ARCH_MIPS_NAME == features[2])
             {

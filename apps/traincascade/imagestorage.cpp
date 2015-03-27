@@ -1,6 +1,7 @@
 #include "opencv2/core.hpp"
+#include "opencv2/core/core_c.h"
 #include "opencv2/imgproc.hpp"
-#include "opencv2/highgui.hpp"
+#include "opencv2/imgcodecs.hpp"
 
 #include "imagestorage.h"
 #include <stdio.h>
@@ -32,20 +33,12 @@ bool CvCascadeImageReader::NegReader::create( const string _filename, Size _winS
     if ( !file.is_open() )
         return false;
 
-    size_t pos = _filename.rfind('\\');
-    char dlmrt = '\\';
-    if (pos == string::npos)
-    {
-        pos = _filename.rfind('/');
-        dlmrt = '/';
-    }
-    dirname = pos == string::npos ? "" : _filename.substr(0, pos) + dlmrt;
     while( !file.eof() )
     {
         std::getline(file, str);
         if (str.empty()) break;
         if (str.at(0) == '#' ) continue; /* comment */
-        imgFilenames.push_back(dirname + str);
+        imgFilenames.push_back(str);
     }
     file.close();
 
@@ -70,7 +63,7 @@ bool CvCascadeImageReader::NegReader::nextImg()
         _offset.x = std::min( (int)round % winSize.width, src.cols - winSize.width );
         _offset.y = std::min( (int)round / winSize.width, src.rows - winSize.height );
         if( !src.empty() && src.type() == CV_8UC1
-                && offset.x >= 0 && offset.y >= 0 )
+                && _offset.x >= 0 && _offset.y >= 0 )
             break;
     }
 
@@ -97,7 +90,7 @@ bool CvCascadeImageReader::NegReader::get( Mat& _img )
             return false;
 
     Mat mat( winSize.height, winSize.width, CV_8UC1,
-        (void*)(img.data + point.y * img.step + point.x * img.elemSize()), img.step );
+        (void*)(img.ptr(point.y) + point.x * img.elemSize()), img.step );
     mat.copyTo(_img);
 
     if( (int)( point.x + (1.0F + stepFactor ) * winSize.width ) < img.cols )

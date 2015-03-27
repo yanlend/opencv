@@ -58,16 +58,9 @@ namespace
         inline void throw_no_ogl() { CV_Error(cv::Error::OpenGlNotSupported, "The library is compiled without OpenGL support"); }
     #else
         inline void throw_no_ogl() { CV_Error(cv::Error::OpenGlApiCallError, "OpenGL context doesn't exist"); }
-    #endif
 
     bool checkError(const char* file, const int line, const char* func = 0)
     {
-    #ifndef HAVE_OPENGL
-        (void) file;
-        (void) line;
-        (void) func;
-        return true;
-    #else
         GLenum err = gl::GetError();
 
         if (err != gl::NO_ERROR_)
@@ -102,8 +95,8 @@ namespace
         }
 
         return true;
-    #endif
     }
+    #endif
 
     #define CV_CheckGlError() CV_DbgAssert( (checkError(__FILE__, __LINE__, CV_Func)) )
 } // namespace
@@ -516,7 +509,7 @@ cv::ogl::Buffer::Buffer(InputArray arr, Target target, bool autoRelease) : rows_
     switch (kind)
     {
     case _InputArray::OPENGL_BUFFER:
-    case _InputArray::GPU_MAT:
+    case _InputArray::CUDA_GPU_MAT:
         copyFrom(arr, target, autoRelease);
         break;
 
@@ -601,7 +594,7 @@ void cv::ogl::Buffer::copyFrom(InputArray arr, Target target, bool autoRelease)
             break;
         }
 
-    case _InputArray::GPU_MAT:
+    case _InputArray::CUDA_GPU_MAT:
         {
             #ifndef HAVE_CUDA
                 throw_no_cuda();
@@ -664,7 +657,7 @@ void cv::ogl::Buffer::copyTo(OutputArray arr) const
             break;
         }
 
-    case _InputArray::GPU_MAT:
+    case _InputArray::CUDA_GPU_MAT:
         {
             #ifndef HAVE_CUDA
                 throw_no_cuda();
@@ -1025,7 +1018,7 @@ cv::ogl::Texture2D::Texture2D(InputArray arr, bool autoRelease) : rows_(0), cols
             break;
         }
 
-    case _InputArray::GPU_MAT:
+    case _InputArray::CUDA_GPU_MAT:
         {
             #ifndef HAVE_CUDA
                 throw_no_cuda();
@@ -1139,7 +1132,7 @@ void cv::ogl::Texture2D::copyFrom(InputArray arr, bool autoRelease)
             break;
         }
 
-    case _InputArray::GPU_MAT:
+    case _InputArray::CUDA_GPU_MAT:
         {
             #ifndef HAVE_CUDA
                 throw_no_cuda();
@@ -1191,7 +1184,7 @@ void cv::ogl::Texture2D::copyTo(OutputArray arr, int ddepth, bool autoRelease) c
             break;
         }
 
-    case _InputArray::GPU_MAT:
+    case _InputArray::CUDA_GPU_MAT:
         {
             #ifndef HAVE_CUDA
                 throw_no_cuda();

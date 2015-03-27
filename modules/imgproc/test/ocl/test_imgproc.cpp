@@ -51,7 +51,7 @@
 //
 //M*/
 
-#include "test_precomp.hpp"
+#include "../test_precomp.hpp"
 #include "cvconfig.h"
 #include "opencv2/ts/ocl_test.hpp"
 
@@ -70,8 +70,8 @@ PARAM_TEST_CASE(ImgprocTestBase, MatType,
     int type, borderType, blockSize;
     bool useRoi;
 
-    TEST_DECLARE_INPUT_PARAMETER(src)
-    TEST_DECLARE_OUTPUT_PARAMETER(dst)
+    TEST_DECLARE_INPUT_PARAMETER(src);
+    TEST_DECLARE_OUTPUT_PARAMETER(dst);
 
     virtual void SetUp()
     {
@@ -90,26 +90,20 @@ PARAM_TEST_CASE(ImgprocTestBase, MatType,
         Border dstBorder = randomBorder(0, useRoi ? MAX_VALUE : 0);
         randomSubMat(dst, dst_roi, roiSize, dstBorder, type, 5, 16);
 
-        UMAT_UPLOAD_INPUT_PARAMETER(src)
-        UMAT_UPLOAD_OUTPUT_PARAMETER(dst)
+        UMAT_UPLOAD_INPUT_PARAMETER(src);
+        UMAT_UPLOAD_OUTPUT_PARAMETER(dst);
     }
 
     void Near(double threshold = 0.0, bool relative = false)
     {
         if (relative)
-        {
-            EXPECT_MAT_NEAR_RELATIVE(dst, udst, threshold);
-            EXPECT_MAT_NEAR_RELATIVE(dst_roi, udst_roi, threshold);
-        }
+            OCL_EXPECT_MATS_NEAR_RELATIVE(dst, threshold);
         else
-        {
-            EXPECT_MAT_NEAR(dst, udst, threshold);
-            EXPECT_MAT_NEAR(dst_roi, udst_roi, threshold);
-        }
+            OCL_EXPECT_MATS_NEAR(dst, threshold);
     }
 };
 
-////////////////////////////////copyMakeBorder////////////////////////////////////////////
+//////////////////////////////// copyMakeBorder ////////////////////////////////////////////
 
 PARAM_TEST_CASE(CopyMakeBorder, MatDepth, // depth
                 Channels, // channels
@@ -123,8 +117,8 @@ PARAM_TEST_CASE(CopyMakeBorder, MatDepth, // depth
     TestUtils::Border border;
     Scalar val;
 
-    TEST_DECLARE_INPUT_PARAMETER(src)
-    TEST_DECLARE_OUTPUT_PARAMETER(dst)
+    TEST_DECLARE_INPUT_PARAMETER(src);
+    TEST_DECLARE_OUTPUT_PARAMETER(dst);
 
     virtual void SetUp()
     {
@@ -154,14 +148,13 @@ PARAM_TEST_CASE(CopyMakeBorder, MatDepth, // depth
 
         randomSubMat(dst, dst_roi, roiSize, dstBorder, type, -MAX_VALUE, MAX_VALUE);
 
-        UMAT_UPLOAD_INPUT_PARAMETER(src)
-        UMAT_UPLOAD_OUTPUT_PARAMETER(dst)
+        UMAT_UPLOAD_INPUT_PARAMETER(src);
+        UMAT_UPLOAD_OUTPUT_PARAMETER(dst);
     }
 
-    void Near(double threshold = 0.0)
+    void Near()
     {
-        EXPECT_MAT_NEAR(dst, udst, threshold);
-        EXPECT_MAT_NEAR(dst_roi, udst_roi, threshold);
+        OCL_EXPECT_MATS_NEAR(dst, 0);
     }
 };
 
@@ -178,7 +171,7 @@ OCL_TEST_P(CopyMakeBorder, Mat)
     }
 }
 
-////////////////////////////////equalizeHist//////////////////////////////////////////////
+//////////////////////////////// equalizeHist //////////////////////////////////////////////
 
 typedef ImgprocTestBase EqualizeHist;
 
@@ -191,18 +184,18 @@ OCL_TEST_P(EqualizeHist, Mat)
         OCL_OFF(cv::equalizeHist(src_roi, dst_roi));
         OCL_ON(cv::equalizeHist(usrc_roi, udst_roi));
 
-        Near(1.1);
+        Near(1);
     }
 }
 
-////////////////////////////////cornerMinEigenVal//////////////////////////////////////////
+//////////////////////////////// Corners test //////////////////////////////////////////
 
 struct CornerTestBase :
         public ImgprocTestBase
 {
     virtual void random_roi()
     {
-        Mat image = readImageType("gpu/stereobm/aloe-L.png", type);
+        Mat image = readImageType("../gpu/stereobm/aloe-L.png", type);
         ASSERT_FALSE(image.empty());
 
         bool isFP = CV_MAT_DEPTH(type) >= CV_32F;
@@ -224,14 +217,14 @@ struct CornerTestBase :
         Border dstBorder = randomBorder(0, useRoi ? MAX_VALUE : 0);
         randomSubMat(dst, dst_roi, roiSize, dstBorder, CV_32FC1, 5, 16);
 
-        UMAT_UPLOAD_INPUT_PARAMETER(src)
-        UMAT_UPLOAD_OUTPUT_PARAMETER(dst)
+        UMAT_UPLOAD_INPUT_PARAMETER(src);
+        UMAT_UPLOAD_OUTPUT_PARAMETER(dst);
     }
 };
 
 typedef CornerTestBase CornerMinEigenVal;
 
-OCL_TEST_P(CornerMinEigenVal, DISABLED_Mat)
+OCL_TEST_P(CornerMinEigenVal, Mat)
 {
     for (int j = 0; j < test_loop_times; j++)
     {
@@ -246,11 +239,11 @@ OCL_TEST_P(CornerMinEigenVal, DISABLED_Mat)
     }
 }
 
-////////////////////////////////cornerHarris//////////////////////////////////////////
+//////////////////////////////// cornerHarris //////////////////////////////////////////
 
 typedef CornerTestBase CornerHarris;
 
-OCL_TEST_P(CornerHarris, DISABLED_Mat)
+OCL_TEST_P(CornerHarris, Mat)
 {
     for (int j = 0; j < test_loop_times; j++)
     {
@@ -262,18 +255,38 @@ OCL_TEST_P(CornerHarris, DISABLED_Mat)
         OCL_OFF(cv::cornerHarris(src_roi, dst_roi, blockSize, apertureSize, k, borderType));
         OCL_ON(cv::cornerHarris(usrc_roi, udst_roi, blockSize, apertureSize, k, borderType));
 
-        Near(1e-5, true);
+        Near(1e-6, true);
     }
 }
 
-//////////////////////////////////integral/////////////////////////////////////////////////
+//////////////////////////////// preCornerDetect //////////////////////////////////////////
+
+typedef ImgprocTestBase PreCornerDetect;
+
+OCL_TEST_P(PreCornerDetect, Mat)
+{
+    for (int j = 0; j < test_loop_times; j++)
+    {
+        random_roi();
+
+        const int apertureSize = blockSize;
+
+        OCL_OFF(cv::preCornerDetect(src_roi, dst_roi, apertureSize, borderType));
+        OCL_ON(cv::preCornerDetect(usrc_roi, udst_roi, apertureSize, borderType));
+
+        Near(1e-6, true);
+    }
+}
+
+
+////////////////////////////////// integral /////////////////////////////////////////////////
 
 struct Integral :
         public ImgprocTestBase
 {
     int sdepth, sqdepth;
 
-    TEST_DECLARE_OUTPUT_PARAMETER(dst2)
+    TEST_DECLARE_OUTPUT_PARAMETER(dst2);
 
     virtual void SetUp()
     {
@@ -297,23 +310,17 @@ struct Integral :
         Border dst2Border = randomBorder(0, useRoi ? 2 : 0);
         randomSubMat(dst2, dst2_roi, isize, dst2Border, sqdepth, 5, 16);
 
-        UMAT_UPLOAD_INPUT_PARAMETER(src)
-        UMAT_UPLOAD_OUTPUT_PARAMETER(dst)
-        UMAT_UPLOAD_OUTPUT_PARAMETER(dst2)
+        UMAT_UPLOAD_INPUT_PARAMETER(src);
+        UMAT_UPLOAD_OUTPUT_PARAMETER(dst);
+        UMAT_UPLOAD_OUTPUT_PARAMETER(dst2);
     }
 
     void Near2(double threshold = 0.0, bool relative = false)
     {
         if (relative)
-        {
-            EXPECT_MAT_NEAR_RELATIVE(dst2, udst2, threshold);
-            EXPECT_MAT_NEAR_RELATIVE(dst2_roi, udst2_roi, threshold);
-        }
+            OCL_EXPECT_MATS_NEAR_RELATIVE(dst2, threshold);
         else
-        {
-            EXPECT_MAT_NEAR(dst2, udst2, threshold);
-            EXPECT_MAT_NEAR(dst2_roi, udst2_roi, threshold);
-        }
+            OCL_EXPECT_MATS_NEAR(dst2, threshold);
     }
 };
 
@@ -344,8 +351,7 @@ OCL_TEST_P(Integral, Mat2)
     }
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//// threshold
+////////////////////////////////////////  threshold //////////////////////////////////////////////
 
 struct Threshold :
         public ImgprocTestBase
@@ -355,7 +361,6 @@ struct Threshold :
     virtual void SetUp()
     {
         type = GET_PARAM(0);
-        blockSize = GET_PARAM(1);
         thresholdType = GET_PARAM(2);
         useRoi = GET_PARAM(3);
     }
@@ -377,9 +382,7 @@ OCL_TEST_P(Threshold, Mat)
     }
 }
 
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
-//// CLAHE
+/////////////////////////////////////////// CLAHE //////////////////////////////////////////////////
 
 PARAM_TEST_CASE(CLAHETest, Size, double, bool)
 {
@@ -387,8 +390,8 @@ PARAM_TEST_CASE(CLAHETest, Size, double, bool)
     double clipLimit;
     bool useRoi;
 
-    TEST_DECLARE_INPUT_PARAMETER(src)
-    TEST_DECLARE_OUTPUT_PARAMETER(dst)
+    TEST_DECLARE_INPUT_PARAMETER(src);
+    TEST_DECLARE_OUTPUT_PARAMETER(dst);
 
     virtual void SetUp()
     {
@@ -406,14 +409,13 @@ PARAM_TEST_CASE(CLAHETest, Size, double, bool)
         Border dstBorder = randomBorder(0, useRoi ? MAX_VALUE : 0);
         randomSubMat(dst, dst_roi, roiSize, dstBorder, CV_8UC1, 5, 16);
 
-        UMAT_UPLOAD_INPUT_PARAMETER(src)
-        UMAT_UPLOAD_OUTPUT_PARAMETER(dst)
+        UMAT_UPLOAD_INPUT_PARAMETER(src);
+        UMAT_UPLOAD_OUTPUT_PARAMETER(dst);
     }
 
     void Near(double threshold = 0.0)
     {
-        EXPECT_MAT_NEAR(dst, udst, threshold);
-        EXPECT_MAT_NEAR(dst_roi, udst_roi, threshold);
+        OCL_EXPECT_MATS_NEAR(dst, threshold);
     }
 };
 
@@ -448,6 +450,13 @@ OCL_INSTANTIATE_TEST_CASE_P(Imgproc, CornerMinEigenVal, Combine(
                             Bool()));
 
 OCL_INSTANTIATE_TEST_CASE_P(Imgproc, CornerHarris, Combine(
+                            Values((MatType)CV_8UC1, CV_32FC1),
+                            Values(3, 5),
+                            Values( (BorderType)BORDER_CONSTANT, (BorderType)BORDER_REPLICATE,
+                                    (BorderType)BORDER_REFLECT, (BorderType)BORDER_REFLECT_101),
+                            Bool()));
+
+OCL_INSTANTIATE_TEST_CASE_P(Imgproc, PreCornerDetect, Combine(
                             Values((MatType)CV_8UC1, CV_32FC1),
                             Values(3, 5),
                             Values( (BorderType)BORDER_CONSTANT, (BorderType)BORDER_REPLICATE,
