@@ -260,6 +260,10 @@ struct CvCapture_FFMPEG
    and so the filename is needed to reopen the file on backward seeking.
 */
     char              * filename;
+
+#if LIBAVFORMAT_BUILD >= CALC_FFMPEG_VERSION(52, 111, 0)
+    AVDictionary *dict;
+#endif
 };
 
 void CvCapture_FFMPEG::init()
@@ -280,6 +284,10 @@ void CvCapture_FFMPEG::init()
     avcodec = 0;
     frame_number = 0;
     eps_zero = 0.000025;
+
+#if LIBAVFORMAT_BUILD >= CALC_FFMPEG_VERSION(52, 111, 0)
+    dict = NULL;
+#endif
 }
 
 
@@ -292,7 +300,15 @@ void CvCapture_FFMPEG::close()
     }
 
     if( picture )
+    {
+        // FFmpeg and Libav added avcodec_free_frame in different versions.
+#if LIBAVCODEC_BUILD >= (LIBAVCODEC_VERSION_MICRO >= 100 \
+    ? CALC_FFMPEG_VERSION(54, 59, 100) : CALC_FFMPEG_VERSION(54, 28, 0))
+        avcodec_free_frame(&picture);
+#else
         av_free(picture);
+#endif
+    }
 
     if( video_st )
     {
@@ -328,6 +344,11 @@ void CvCapture_FFMPEG::close()
         av_free_packet (&packet);
         packet.data = NULL;
     }
+
+#if LIBAVFORMAT_BUILD >= CALC_FFMPEG_VERSION(52, 111, 0)
+    if (dict != NULL)
+       av_dict_free(&dict);
+#endif
 
     init();
 }
@@ -485,6 +506,7 @@ static int LockCallBack(void **mutex, AVLockOp op)
             localMutex->destroy();
             free(localMutex);
             localMutex = NULL;
+            *mutex = NULL;
         break;
     }
     return 0;
@@ -535,7 +557,8 @@ bool CvCapture_FFMPEG::open( const char* _filename )
     close();
 
 #if LIBAVFORMAT_BUILD >= CALC_FFMPEG_VERSION(52, 111, 0)
-    int err = avformat_open_input(&ic, _filename, NULL, NULL);
+    av_dict_set(&dict, "rtsp_transport", "tcp", 0);
+    int err = avformat_open_input(&ic, _filename, NULL, &dict);
 #else
     int err = av_open_input_file(&ic, _filename, NULL, 0, NULL);
 #endif
@@ -630,7 +653,7 @@ bool CvCapture_FFMPEG::grabFrame()
     int got_picture;
 
     int count_errs = 0;
-    const int max_number_of_attempts = 1 << 16;
+    const int max_number_of_attempts = 1 << 9;
 
     if( !ic || !video_st )  return false;
 
@@ -2066,7 +2089,7 @@ enum
     VideoCodec_YV12   = (('Y'<<24)|('V'<<16)|('1'<<8)|('2')),   // Y,V,U (4:2:0)
     VideoCodec_NV12   = (('N'<<24)|('V'<<16)|('1'<<8)|('2')),   // Y,UV  (4:2:0)
     VideoCodec_YUYV   = (('Y'<<24)|('U'<<16)|('Y'<<8)|('V')),   // YUYV/YUY2 (4:2:2)
-    VideoCodec_UYVY   = (('U'<<24)|('Y'<<16)|('V'<<8)|('Y')),   // UYVY (4:2:2)
+    VideoCodec_UYVY   = (('U'<<24)|('Y'<<16)|('V'<<8)|('Y'))    // UYVY (4:2:2)
 };
 
 enum
@@ -2074,7 +2097,7 @@ enum
     VideoChromaFormat_Monochrome = 0,
     VideoChromaFormat_YUV420,
     VideoChromaFormat_YUV422,
-    VideoChromaFormat_YUV444,
+    VideoChromaFormat_YUV444
 };
 
 struct InputMediaStream_FFMPEG

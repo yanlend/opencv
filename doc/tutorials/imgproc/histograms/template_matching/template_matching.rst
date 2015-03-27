@@ -85,7 +85,7 @@ d. **method=CV\_TM\_CCORR\_NORMED**
 
    .. math::
 
-      R(x,y)= \frac{\sum_{x',y'} (T(x',y') \cdot I'(x+x',y+y'))}{\sqrt{\sum_{x',y'}T(x',y')^2 \cdot \sum_{x',y'} I(x+x',y+y')^2}}
+      R(x,y)= \frac{\sum_{x',y'} (T(x',y') \cdot I(x+x',y+y'))}{\sqrt{\sum_{x',y'}T(x',y')^2 \cdot \sum_{x',y'} I(x+x',y+y')^2}}
 
 
 e. **method=CV\_TM\_CCOEFF**
@@ -185,7 +185,7 @@ Code
      int result_cols =  img.cols - templ.cols + 1;
      int result_rows = img.rows - templ.rows + 1;
 
-     result.create( result_cols, result_rows, CV_32FC1 );
+     result.create( result_rows, result_cols, CV_32FC1 );
 
      /// Do the Matching and Normalize
      matchTemplate( img, templ, result, match_method );
@@ -271,7 +271,7 @@ Explanation
       int result_cols =  img.cols - templ.cols + 1;
       int result_rows = img.rows - templ.rows + 1;
 
-      result.create( result_cols, result_rows, CV_32FC1 );
+      result.create( result_rows, result_cols, CV_32FC1 );
 
 #. Perform the template matching operation:
 

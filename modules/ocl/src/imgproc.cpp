@@ -898,7 +898,7 @@ namespace cv
         ////////////////////////////////////////////////////////////////////////
         // integral
 
-        void integral(const oclMat &src, oclMat &sum, oclMat &sqsum, int sdepth)
+        void integral(const oclMat &src, oclMat &sum, oclMat &sqsum)
         {
             CV_Assert(src.type() == CV_8UC1);
             if (!src.clCxt->supportsFeature(ocl::FEATURE_CL_DOUBLE) && src.depth() == CV_64F)
@@ -907,11 +907,6 @@ namespace cv
                 return;
             }
 
-            if( sdepth <= 0 )
-                sdepth = CV_32S;
-            sdepth = CV_MAT_DEPTH(sdepth);
-            int type = CV_MAKE_TYPE(sdepth, 1);
-
             int vlen = 4;
             int offset = src.offset / vlen;
             int pre_invalid = src.offset % vlen;
@@ -919,26 +914,17 @@ namespace cv
 
             oclMat t_sum , t_sqsum;
             int w = src.cols + 1, h = src.rows + 1;
-
-            char build_option[250];
-            if(Context::getContext()->supportsFeature(ocl::FEATURE_CL_DOUBLE))
-            {
-                t_sqsum.create(src.cols, src.rows, CV_64FC1);
-                sqsum.create(h, w, CV_64FC1);
-                sprintf(build_option, "-D TYPE=double -D TYPE4=double4 -D convert_TYPE4=convert_double4");
-            }
-            else
-            {
-                t_sqsum.create(src.cols, src.rows, CV_32FC1);
-                sqsum.create(h, w, CV_32FC1);
-                sprintf(build_option, "-D TYPE=float -D TYPE4=float4 -D convert_TYPE4=convert_float4");
-            }
+            int depth = src.depth() == CV_8U ? CV_32S : CV_64F;
+            int type = CV_MAKE_TYPE(depth, 1);
 
             t_sum.create(src.cols, src.rows, type);
             sum.create(h, w, type);
 
-            int sum_offset = sum.offset / sum.elemSize();
-            int sqsum_offset = sqsum.offset / sqsum.elemSize();
+            t_sqsum.create(src.cols, src.rows, CV_32FC1);
+            sqsum.create(h, w, CV_32FC1);
+
+            int sum_offset = sum.offset / vlen;
+            int sqsum_offset = sqsum.offset / vlen;
 
             vector<pair<size_t , const void *> > args;
             args.push_back( make_pair( sizeof(cl_mem) , (void *)&src.data ));
@@ -950,9 +936,8 @@ namespace cv
             args.push_back( make_pair( sizeof(cl_int) , (void *)&src.cols ));
             args.push_back( make_pair( sizeof(cl_int) , (void *)&src.step ));
             args.push_back( make_pair( sizeof(cl_int) , (void *)&t_sum.step));
-            args.push_back( make_pair( sizeof(cl_int) , (void *)&t_sqsum.step));
             size_t gt[3] = {((vcols + 1) / 2) * 256, 1, 1}, lt[3] = {256, 1, 1};
-            openCLExecuteKernel(src.clCxt, &imgproc_integral, "integral_cols", gt, lt, args, -1, sdepth, build_option);
+            openCLExecuteKernel(src.clCxt, &imgproc_integral, "integral_cols", gt, lt, args, -1, depth);
 
             args.clear();
             args.push_back( make_pair( sizeof(cl_mem) , (void *)&t_sum.data ));
@@ -962,16 +947,15 @@ namespace cv
             args.push_back( make_pair( sizeof(cl_int) , (void *)&t_sum.rows ));
             args.push_back( make_pair( sizeof(cl_int) , (void *)&t_sum.cols ));
             args.push_back( make_pair( sizeof(cl_int) , (void *)&t_sum.step ));
-            args.push_back( make_pair( sizeof(cl_int) , (void *)&t_sqsum.step));
             args.push_back( make_pair( sizeof(cl_int) , (void *)&sum.step));
             args.push_back( make_pair( sizeof(cl_int) , (void *)&sqsum.step));
             args.push_back( make_pair( sizeof(cl_int) , (void *)&sum_offset));
             args.push_back( make_pair( sizeof(cl_int) , (void *)&sqsum_offset));
             size_t gt2[3] = {t_sum.cols  * 32, 1, 1}, lt2[3] = {256, 1, 1};
-            openCLExecuteKernel(src.clCxt, &imgproc_integral, "integral_rows", gt2, lt2, args, -1, sdepth, build_option);
+            openCLExecuteKernel(src.clCxt, &imgproc_integral, "integral_rows", gt2, lt2, args, -1, depth);
         }
 
-        void integral(const oclMat &src, oclMat &sum, int sdepth)
+        void integral(const oclMat &src, oclMat &sum)
         {
             CV_Assert(src.type() == CV_8UC1);
             int vlen = 4;
@@ -979,13 +963,10 @@ namespace cv
             int pre_invalid = src.offset % vlen;
             int vcols = (pre_invalid + src.cols + vlen - 1) / vlen;
 
-            if( sdepth <= 0 )
-                sdepth = CV_32S;
-            sdepth = CV_MAT_DEPTH(sdepth);
-            int type = CV_MAKE_TYPE(sdepth, 1);
-
             oclMat t_sum;
             int w = src.cols + 1, h = src.rows + 1;
+            int depth = src.depth() == CV_8U ? CV_32S : CV_32F;
+            int type = CV_MAKE_TYPE(depth, 1);
 
             t_sum.create(src.cols, src.rows, type);
             sum.create(h, w, type);
@@ -1001,7 +982,7 @@ namespace cv
             args.push_back( make_pair( sizeof(cl_int) , (void *)&src.step ));
             args.push_back( make_pair( sizeof(cl_int) , (void *)&t_sum.step));
             size_t gt[3] = {((vcols + 1) / 2) * 256, 1, 1}, lt[3] = {256, 1, 1};
-            openCLExecuteKernel(src.clCxt, &imgproc_integral_sum, "integral_sum_cols", gt, lt, args, -1, sdepth);
+            openCLExecuteKernel(src.clCxt, &imgproc_integral_sum, "integral_sum_cols", gt, lt, args, -1, depth);
 
             args.clear();
             args.push_back( make_pair( sizeof(cl_mem) , (void *)&t_sum.data ));
@@ -1012,7 +993,7 @@ namespace cv
             args.push_back( make_pair( sizeof(cl_int) , (void *)&sum.step));
             args.push_back( make_pair( sizeof(cl_int) , (void *)&sum_offset));
             size_t gt2[3] = {t_sum.cols  * 32, 1, 1}, lt2[3] = {256, 1, 1};
-            openCLExecuteKernel(src.clCxt, &imgproc_integral_sum, "integral_sum_rows", gt2, lt2, args, -1, sdepth);
+            openCLExecuteKernel(src.clCxt, &imgproc_integral_sum, "integral_sum_rows", gt2, lt2, args, -1, depth);
         }
 
         /////////////////////// corner //////////////////////////////
@@ -1033,67 +1014,117 @@ namespace cv
             else
                 scale = 1. / scale;
 
-            if (ksize > 0)
+            const int sobel_lsz = 16;
+            if((src.type() == CV_8UC1 || src.type() == CV_32FC1) &&
+                (ksize==3 || ksize==5 || ksize==7 || ksize==-1) &&
+                src.wholerows > sobel_lsz + (ksize>>1) &&
+                src.wholecols > sobel_lsz + (ksize>>1))
             {
-                Context* clCxt = Context::getContext();
-                if(clCxt->supportsFeature(FEATURE_CL_INTEL_DEVICE) && src.type() == CV_8UC1 &&
-                    src.cols % 8 == 0 && src.rows % 8 == 0 &&
-                    ksize==3 &&
-                    (borderType ==cv::BORDER_REFLECT ||
-                     borderType == cv::BORDER_REPLICATE ||
-                     borderType ==cv::BORDER_REFLECT101 ||
-                     borderType ==cv::BORDER_WRAP))
+                Dx.create(src.size(), CV_32FC1);
+                Dy.create(src.size(), CV_32FC1);
+
+                CV_Assert(Dx.rows == Dy.rows && Dx.cols == Dy.cols);
+
+                size_t lt2[3] = {sobel_lsz, sobel_lsz, 1};
+                size_t gt2[3] = {lt2[0]*(1 + (src.cols-1) / lt2[0]), lt2[1]*(1 + (src.rows-1) / lt2[1]), 1};
+
+                unsigned int src_pitch = src.step;
+                unsigned int Dx_pitch = Dx.step;
+                unsigned int Dy_pitch = Dy.step;
+
+                int src_offset_x = (src.offset % src.step) / src.elemSize();
+                int src_offset_y = src.offset / src.step;
+
+                float _scale = scale;
+
+                std::vector<std::pair<size_t , const void *> > args;
+                args.push_back( std::make_pair( sizeof(cl_mem)  , (void *)&src.data ));
+                args.push_back( std::make_pair( sizeof(cl_uint) , (void *)&src_pitch ));
+
+                args.push_back( std::make_pair( sizeof(cl_int) , (void *)&src_offset_x ));
+                args.push_back( std::make_pair( sizeof(cl_int) , (void *)&src_offset_y ));
+
+                args.push_back( std::make_pair( sizeof(cl_mem)  , (void *)&Dx.data ));
+                args.push_back( std::make_pair( sizeof(cl_int)  , (void *)&Dx.offset ));
+                args.push_back( std::make_pair( sizeof(cl_uint) , (void *)&Dx_pitch ));
+                args.push_back( std::make_pair( sizeof(cl_mem)  , (void *)&Dy.data ));
+                args.push_back( std::make_pair( sizeof(cl_int)  , (void *)&Dy.offset ));
+                args.push_back( std::make_pair( sizeof(cl_uint) , (void *)&Dy_pitch ));
+
+                args.push_back( std::make_pair( sizeof(cl_int)  , (void *)&src.wholecols ));
+                args.push_back( std::make_pair( sizeof(cl_int)  , (void *)&src.wholerows ));
+
+                args.push_back( std::make_pair( sizeof(cl_int)  , (void *)&Dx.cols ));
+                args.push_back( std::make_pair( sizeof(cl_int)  , (void *)&Dx.rows ));
+
+                args.push_back( std::make_pair( sizeof(cl_float), (void *)&_scale ));
+
+                string option = cv::format("-D BLK_X=%d -D BLK_Y=%d",(int)lt2[0],(int)lt2[1]);
+                switch(src.type())
                 {
-                    Dx.create(src.size(), CV_32FC1);
-                    Dy.create(src.size(), CV_32FC1);
-
-                    const unsigned int block_x = 8;
-                    const unsigned int block_y = 8;
-
-                    unsigned int src_pitch = src.step;
-                    unsigned int dst_pitch = Dx.cols;
-
-                    float _scale = scale;
-
-                    std::vector<std::pair<size_t , const void *> > args;
-                    args.push_back( std::make_pair( sizeof(cl_mem) , (void *)&src.data ));
-                    args.push_back( std::make_pair( sizeof(cl_mem) , (void *)&Dx.data ));
-                    args.push_back( std::make_pair( sizeof(cl_mem) , (void *)&Dy.data ));
-                    args.push_back( std::make_pair( sizeof(cl_int) , (void *)&src.cols ));
-                    args.push_back( std::make_pair( sizeof(cl_int) , (void *)&src.rows ));
-                    args.push_back( std::make_pair( sizeof(cl_uint) , (void *)&src_pitch ));
-                    args.push_back( std::make_pair( sizeof(cl_uint) , (void *)&dst_pitch ));
-                    args.push_back( std::make_pair( sizeof(cl_float) , (void *)&_scale ));
-                    size_t gt2[3] = {src.cols, src.rows, 1}, lt2[3] = {block_x, block_y, 1};
-
-                    string option = "-D BLK_X=8 -D BLK_Y=8";
-                    switch(borderType)
-                    {
-                    case cv::BORDER_REPLICATE:
-                        option += " -D BORDER_REPLICATE";
-                        break;
-                    case cv::BORDER_REFLECT:
-                        option += " -D BORDER_REFLECT";
-                        break;
-                    case cv::BORDER_REFLECT101:
-                        option += " -D BORDER_REFLECT101";
-                        break;
-                    case cv::BORDER_WRAP:
-                        option += " -D BORDER_WRAP";
-                        break;
-                    }
-                    openCLExecuteKernel(src.clCxt, &imgproc_sobel3, "sobel3", gt2, lt2, args, -1, -1, option.c_str() );
+                case CV_8UC1:
+                    option += " -D SRCTYPE=uchar";
+                    break;
+                case CV_32FC1:
+                    option += " -D SRCTYPE=float";
+                    break;
                 }
-                else
+                switch(borderType)
+                {
+                case cv::BORDER_CONSTANT:
+                    option += " -D BORDER_CONSTANT";
+                    break;
+                case cv::BORDER_REPLICATE:
+                    option += " -D BORDER_REPLICATE";
+                    break;
+                case cv::BORDER_REFLECT:
+                    option += " -D BORDER_REFLECT";
+                    break;
+                case cv::BORDER_REFLECT101:
+                    option += " -D BORDER_REFLECT_101";
+                    break;
+                case cv::BORDER_WRAP:
+                    option += " -D BORDER_WRAP";
+                    break;
+                default:
+                    CV_Error(CV_StsBadFlag, "BORDER type is not supported!");
+                    break;
+                }
+
+                string kernel_name;
+                switch(ksize)
+                {
+                case -1:
+                    option += " -D SCHARR";
+                    kernel_name = "sobel3";
+                    break;
+                case 3:
+                    kernel_name = "sobel3";
+                    break;
+                case 5:
+                    kernel_name = "sobel5";
+                    break;
+                case 7:
+                    kernel_name = "sobel7";
+                    break;
+                default:
+                    CV_Error(CV_StsBadFlag, "Kernel size is not supported!");
+                    break;
+                }
+                openCLExecuteKernel(src.clCxt, &imgproc_sobel3, kernel_name, gt2, lt2, args, -1, -1, option.c_str() );
+            }
+            else
+            {
+                if (ksize > 0)
                 {
                     Sobel(src, Dx, CV_32F, 1, 0, ksize, scale, 0, borderType);
                     Sobel(src, Dy, CV_32F, 0, 1, ksize, scale, 0, borderType);
                 }
-            }
-            else
-            {
-                Scharr(src, Dx, CV_32F, 1, 0, scale, 0, borderType);
-                Scharr(src, Dy, CV_32F, 0, 1, scale, 0, borderType);
+                else
+                {
+                    Scharr(src, Dx, CV_32F, 1, 0, scale, 0, borderType);
+                    Scharr(src, Dy, CV_32F, 0, 1, scale, 0, borderType);
+                }
             }
             CV_Assert(Dx.offset == 0 && Dy.offset == 0);
         }

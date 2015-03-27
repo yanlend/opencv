@@ -301,6 +301,7 @@ static ippiReorderFunc ippiSwapChannelsC4RTab[] =
     0, (ippiReorderFunc)ippiSwapChannels_32f_AC4R, 0, 0
 };
 
+#if 0
 static ippiColor2GrayFunc ippiColor2GrayC3Tab[] =
 {
     (ippiColor2GrayFunc)ippiColorToGray_8u_C3C1R, 0, (ippiColor2GrayFunc)ippiColorToGray_16u_C3C1R, 0,
@@ -312,6 +313,7 @@ static ippiColor2GrayFunc ippiColor2GrayC4Tab[] =
     (ippiColor2GrayFunc)ippiColorToGray_8u_AC4C1R, 0, (ippiColor2GrayFunc)ippiColorToGray_16u_AC4C1R, 0,
     0, (ippiColor2GrayFunc)ippiColorToGray_32f_AC4C1R, 0, 0
 };
+#endif
 
 static ippiGeneralFunc ippiRGB2GrayC3Tab[] =
 {
@@ -2044,7 +2046,7 @@ struct RGB2Luv_b
             {
                 dst[j] = saturate_cast<uchar>(buf[j]*2.55f);
                 dst[j+1] = saturate_cast<uchar>(buf[j+1]*0.72033898305084743f + 96.525423728813564f);
-                dst[j+2] = saturate_cast<uchar>(buf[j+2]*0.99609375f + 139.453125f);
+                dst[j+2] = saturate_cast<uchar>(buf[j+2]*0.9732824427480916f + 136.259541984732824f);
             }
         }
     }
@@ -2076,7 +2078,7 @@ struct Luv2RGB_b
             {
                 buf[j] = src[j]*(100.f/255.f);
                 buf[j+1] = (float)(src[j+1]*1.388235294117647f - 134.f);
-                buf[j+2] = (float)(src[j+2]*1.003921568627451f - 140.f);
+                buf[j+2] = (float)(src[j+2]*1.027450980392157f - 140.f);
             }
             cvt(buf, buf, dn);
 
@@ -3214,7 +3216,7 @@ struct YUV420p2RGB888Invoker : ParallelLoopBody
         const int rangeBegin = range.start * 2;
         const int rangeEnd = range.end * 2;
 
-        size_t uvsteps[2] = {width/2, stride - width/2};
+        int uvsteps[2] = {width/2, stride - width/2};
         int usIdx = ustepIdx, vsIdx = vstepIdx;
 
         const uchar* y1 = my1 + rangeBegin * stride;
@@ -3282,7 +3284,7 @@ struct YUV420p2RGBA8888Invoker : ParallelLoopBody
         int rangeBegin = range.start * 2;
         int rangeEnd = range.end * 2;
 
-        size_t uvsteps[2] = {width/2, stride - width/2};
+        int uvsteps[2] = {width/2, stride - width/2};
         int usIdx = ustepIdx, vsIdx = vstepIdx;
 
         const uchar* y1 = my1 + rangeBegin * stride;
@@ -3737,7 +3739,7 @@ void cv::cvtColor( InputArray _src, OutputArray _dst, int code, int dcn )
             CV_Assert( scn == 3 || scn == 4 );
             _dst.create(sz, CV_MAKETYPE(depth, 1));
             dst = _dst.getMat();
-
+/*
 #if defined (HAVE_IPP) && (IPP_VERSION_MAJOR >= 7)
             if( code == CV_BGR2GRAY )
             {
@@ -3760,7 +3762,7 @@ void cv::cvtColor( InputArray _src, OutputArray _dst, int code, int dcn )
                     return;
             }
 #endif
-
+*/
             bidx = code == CV_BGR2GRAY || code == CV_BGRA2GRAY ? 0 : 2;
 
             if( depth == CV_8U )

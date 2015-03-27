@@ -2032,39 +2032,24 @@ void cv::transpose( InputArray _src, OutputArray _dst )
 }
 
 
+////////////////////////////////////// completeSymm /////////////////////////////////////////
+
 void cv::completeSymm( InputOutputArray _m, bool LtoR )
 {
     Mat m = _m.getMat();
-    CV_Assert( m.dims <= 2 );
+    size_t step = m.step, esz = m.elemSize();
+    CV_Assert( m.dims <= 2 && m.rows == m.cols );
 
-    int i, j, nrows = m.rows, type = m.type();
-    int j0 = 0, j1 = nrows;
-    CV_Assert( m.rows == m.cols );
+    int rows = m.rows;
+    int j0 = 0, j1 = rows;
 
-    if( type == CV_32FC1 || type == CV_32SC1 )
+    uchar* data = m.data;
+    for( int i = 0; i < rows; i++ )
     {
-        int* data = (int*)m.data;
-        size_t step = m.step/sizeof(data[0]);
-        for( i = 0; i < nrows; i++ )
-        {
-            if( !LtoR ) j1 = i; else j0 = i+1;
-            for( j = j0; j < j1; j++ )
-                data[i*step + j] = data[j*step + i];
-        }
+        if( !LtoR ) j1 = i; else j0 = i+1;
+        for( int j = j0; j < j1; j++ )
+            memcpy(data + (i*step + j*esz), data + (j*step + i*esz), esz);
     }
-    else if( type == CV_64FC1 )
-    {
-        double* data = (double*)m.data;
-        size_t step = m.step/sizeof(data[0]);
-        for( i = 0; i < nrows; i++ )
-        {
-            if( !LtoR ) j1 = i; else j0 = i+1;
-            for( j = j0; j < j1; j++ )
-                data[i*step + j] = data[j*step + i];
-        }
-    }
-    else
-        CV_Error( CV_StsUnsupportedFormat, "" );
 }
 
 
@@ -2706,15 +2691,17 @@ double cv::kmeans( InputArray _data, int K,
                    int flags, OutputArray _centers )
 {
     const int SPP_TRIALS = 3;
-    Mat data = _data.getMat();
-    bool isrow = data.rows == 1 && data.channels() > 1;
-    int N = !isrow ? data.rows : data.cols;
-    int dims = (!isrow ? data.cols : 1)*data.channels();
-    int type = data.depth();
+    Mat data0 = _data.getMat();
+    bool isrow = data0.rows == 1 && data0.channels() > 1;
+    int N = !isrow ? data0.rows : data0.cols;
+    int dims = (!isrow ? data0.cols : 1)*data0.channels();
+    int type = data0.depth();
 
     attempts = std::max(attempts, 1);
-    CV_Assert( data.dims <= 2 && type == CV_32F && K > 0 );
+    CV_Assert( data0.dims <= 2 && type == CV_32F && K > 0 );
     CV_Assert( N >= K );
+
+    Mat data(N, dims, CV_32F, data0.data, isrow ? dims * sizeof(float) : static_cast<size_t>(data0.step));
 
     _bestLabels.create(N, 1, CV_32S, -1, true);
 

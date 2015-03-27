@@ -483,13 +483,15 @@ GPU_TEST_P(OpticalFlowBM, Accuracy)
 
     cv::Mat frame0 = readImage("opticalflow/rubberwhale1.png", cv::IMREAD_GRAYSCALE);
     ASSERT_FALSE(frame0.empty());
+    cv::resize(frame0, frame0, cv::Size(), 0.5, 0.5);
 
     cv::Mat frame1 = readImage("opticalflow/rubberwhale2.png", cv::IMREAD_GRAYSCALE);
     ASSERT_FALSE(frame1.empty());
+    cv::resize(frame1, frame1, cv::Size(), 0.5, 0.5);
 
-    cv::Size block_size(16, 16);
+    cv::Size block_size(8, 8);
     cv::Size shift_size(1, 1);
-    cv::Size max_range(16, 16);
+    cv::Size max_range(8, 8);
 
     cv::gpu::GpuMat d_velx, d_vely, buf;
     cv::gpu::calcOpticalFlowBM(loadMat(frame0), loadMat(frame1),
@@ -499,8 +501,8 @@ GPU_TEST_P(OpticalFlowBM, Accuracy)
     cv::Mat velx, vely;
     calcOpticalFlowBM(frame0, frame1, block_size, shift_size, max_range, false, velx, vely);
 
-    EXPECT_MAT_NEAR(velx, d_velx, 0);
-    EXPECT_MAT_NEAR(vely, d_vely, 0);
+    EXPECT_MAT_NEAR(velx, d_velx, 1e-6);
+    EXPECT_MAT_NEAR(vely, d_vely, 1e-6);
 }
 
 INSTANTIATE_TEST_CASE_P(GPU_Video, OpticalFlowBM, ALL_DEVICES);

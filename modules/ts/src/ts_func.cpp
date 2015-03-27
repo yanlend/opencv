@@ -116,7 +116,7 @@ Mat randomMat(RNG& rng, Size size, int type, double minVal, double maxVal, bool 
 
     Mat m(size0, type);
 
-    rng.fill(m, RNG::UNIFORM, Scalar::all(minVal), Scalar::all(maxVal));
+    rng.fill(m, RNG::UNIFORM, minVal, maxVal);
     if( size0 == size )
         return m;
     return m(Rect((size0.width-size.width)/2, (size0.height-size.height)/2, size.width, size.height));
@@ -142,7 +142,7 @@ Mat randomMat(RNG& rng, const vector<int>& size, int type, double minVal, double
 
     Mat m(dims, &size0[0], type);
 
-    rng.fill(m, RNG::UNIFORM, Scalar::all(minVal), Scalar::all(maxVal));
+    rng.fill(m, RNG::UNIFORM, minVal, maxVal);
     if( eqsize )
         return m;
     return m(&r[0]);
@@ -3004,6 +3004,9 @@ void printVersionInfo(bool useStdOut)
 #endif
 #if CV_AVX
     if (checkHardwareSupport(CV_CPU_AVX)) cpu_features += " avx";
+#endif
+#if CV_AVX2
+    if (checkHardwareSupport(CV_CPU_AVX2)) cpu_features += " avx2";
 #endif
 #if CV_NEON
     cpu_features += " neon"; // NEON is currently not checked at runtime

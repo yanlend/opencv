@@ -12,15 +12,50 @@ endif(WITH_VFW)
 
 # --- GStreamer ---
 ocv_clear_vars(HAVE_GSTREAMER)
+# try to find gstreamer 1.x first
 if(WITH_GSTREAMER)
-  CHECK_MODULE(gstreamer-base-0.10 HAVE_GSTREAMER)
-  if(HAVE_GSTREAMER)
-    CHECK_MODULE(gstreamer-app-0.10 HAVE_GSTREAMER)
+  CHECK_MODULE(gstreamer-base-1.0 HAVE_GSTREAMER_BASE)
+  CHECK_MODULE(gstreamer-video-1.0 HAVE_GSTREAMER_VIDEO)
+  CHECK_MODULE(gstreamer-app-1.0 HAVE_GSTREAMER_APP)
+  CHECK_MODULE(gstreamer-riff-1.0 HAVE_GSTREAMER_RIFF)
+  CHECK_MODULE(gstreamer-pbutils-1.0 HAVE_GSTREAMER_PBUTILS)
+
+  if(HAVE_GSTREAMER_BASE AND HAVE_GSTREAMER_VIDEO AND HAVE_GSTREAMER_APP AND HAVE_GSTREAMER_RIFF AND HAVE_GSTREAMER_PBUTILS)
+      set(HAVE_GSTREAMER TRUE)
+      set(GSTREAMER_BASE_VERSION ${ALIASOF_gstreamer-base-1.0_VERSION})
+      set(GSTREAMER_VIDEO_VERSION ${ALIASOF_gstreamer-video-1.0_VERSION})
+      set(GSTREAMER_APP_VERSION ${ALIASOF_gstreamer-app-1.0_VERSION})
+      set(GSTREAMER_RIFF_VERSION ${ALIASOF_gstreamer-riff-1.0_VERSION})
+      set(GSTREAMER_PBUTILS_VERSION ${ALIASOF_gstreamer-pbutils-1.0_VERSION})
   endif()
-  if(HAVE_GSTREAMER)
-    CHECK_MODULE(gstreamer-video-0.10 HAVE_GSTREAMER)
-  endif()
+
 endif(WITH_GSTREAMER)
+
+# gstreamer support was requested but could not find gstreamer 1.x,
+# so fallback/try to find gstreamer 0.10
+if(WITH_GSTREAMER AND NOT HAVE_GSTREAMER)
+  set(WITH_GSTREAMER_0_10 ON)
+endif()
+
+# if gstreamer 1.x was not found (fallback on gstreamer 0.10), or we specified
+# we wanted gstreamer 0.10 support,
+# then try to find it if not gstreamer support has not been found so far.
+if(WITH_GSTREAMER_0_10 AND NOT HAVE_GSTREAMER)
+  CHECK_MODULE(gstreamer-base-0.10 HAVE_GSTREAMER_BASE)
+  CHECK_MODULE(gstreamer-video-0.10 HAVE_GSTREAMER_VIDEO)
+  CHECK_MODULE(gstreamer-app-0.10 HAVE_GSTREAMER_APP)
+  CHECK_MODULE(gstreamer-riff-0.10 HAVE_GSTREAMER_RIFF)
+  CHECK_MODULE(gstreamer-pbutils-0.10 HAVE_GSTREAMER_PBUTILS)
+
+  if(HAVE_GSTREAMER_BASE AND HAVE_GSTREAMER_VIDEO AND HAVE_GSTREAMER_APP AND HAVE_GSTREAMER_RIFF AND HAVE_GSTREAMER_PBUTILS)
+      set(HAVE_GSTREAMER TRUE)
+      set(GSTREAMER_BASE_VERSION ${ALIASOF_gstreamer-base-0.10_VERSION})
+      set(GSTREAMER_VIDEO_VERSION ${ALIASOF_gstreamer-video-0.10_VERSION})
+      set(GSTREAMER_APP_VERSION ${ALIASOF_gstreamer-app-0.10_VERSION})
+      set(GSTREAMER_RIFF_VERSION ${ALIASOF_gstreamer-riff-0.10_VERSION})
+      set(GSTREAMER_PBUTILS_VERSION ${ALIASOF_gstreamer-pbutils-0.10_VERSION})
+  endif()
+endif(WITH_GSTREAMER_0_10 AND NOT HAVE_GSTREAMER)
 
 # --- unicap ---
 ocv_clear_vars(HAVE_UNICAP)
@@ -126,7 +161,13 @@ endif(WITH_XINE)
 ocv_clear_vars(HAVE_LIBV4L HAVE_CAMV4L HAVE_CAMV4L2 HAVE_VIDEOIO)
 if(WITH_V4L)
   if(WITH_LIBV4L)
-    CHECK_MODULE(libv4l1 HAVE_LIBV4L)
+    CHECK_MODULE(libv4l1 HAVE_LIBV4L1)
+    CHECK_MODULE(libv4l2 HAVE_LIBV4L2)
+    if(HAVE_LIBV4L1 AND HAVE_LIBV4L2)
+      set(HAVE_LIBV4L YES)
+    else()
+      set(HAVE_LIBV4L NO)
+    endif()
   endif()
   CHECK_INCLUDE_FILE(linux/videodev.h HAVE_CAMV4L)
   CHECK_INCLUDE_FILE(linux/videodev2.h HAVE_CAMV4L2)
@@ -177,42 +218,35 @@ if(WITH_FFMPEG)
         # Do an other trial
         FIND_FILE(BZIP2_LIBRARIES NAMES libbz2.so.1 PATHS /lib)
       endif()
-    endif(HAVE_FFMPEG)
-  endif()
-
-  if(APPLE)
-    find_path(FFMPEG_INCLUDE_DIR "libavformat/avformat.h"
-              PATHS /usr/local /usr /opt
-              PATH_SUFFIXES include
-              DOC "The path to FFMPEG headers")
-    if(FFMPEG_INCLUDE_DIR)
-      set(HAVE_GENTOO_FFMPEG TRUE)
-      set(FFMPEG_LIB_DIR "${FFMPEG_INCLUDE_DIR}/../lib" CACHE PATH "Full path of FFMPEG library directory")
-      if(EXISTS "${FFMPEG_LIB_DIR}/libavcodec.a")
-        set(HAVE_FFMPEG_CODEC 1)
-        set(ALIASOF_libavcodec_VERSION "Unknown")
-        if(EXISTS "${FFMPEG_LIB_DIR}/libavformat.a")
-          set(HAVE_FFMPEG_FORMAT 1)
+    else()
+      find_path(FFMPEG_INCLUDE_DIR "libavformat/avformat.h"
+                PATHS /usr/local /usr /opt
+                PATH_SUFFIXES include
+                DOC "The path to FFMPEG headers")
+      if(FFMPEG_INCLUDE_DIR)
+        set(HAVE_GENTOO_FFMPEG TRUE)
+        set(FFMPEG_LIB_DIR "${FFMPEG_INCLUDE_DIR}/../lib" CACHE PATH "Full path of FFMPEG library directory")
+        find_library(FFMPEG_CODEC_LIB "avcodec" HINTS "${FFMPEG_LIB_DIR}")
+        find_library(FFMPEG_FORMAT_LIB "avformat" HINTS "${FFMPEG_LIB_DIR}")
+        find_library(FFMPEG_UTIL_LIB "avutil" HINTS "${FFMPEG_LIB_DIR}")
+        find_library(FFMPEG_SWSCALE_LIB "swscale" HINTS "${FFMPEG_LIB_DIR}")
+        if(FFMPEG_CODEC_LIB AND FFMPEG_FORMAT_LIB AND
+           FFMPEG_UTIL_LIB AND FFMPEG_SWSCALE_LIB)
+          set(ALIASOF_libavcodec_VERSION "Unknown")
           set(ALIASOF_libavformat_VERSION "Unknown")
-          if(EXISTS "${FFMPEG_LIB_DIR}/libavutil.a")
-            set(HAVE_FFMPEG_UTIL 1)
-            set(ALIASOF_libavutil_VERSION "Unknown")
-            if(EXISTS "${FFMPEG_LIB_DIR}/libswscale.a")
-              set(HAVE_FFMPEG_SWSCALE 1)
-              set(ALIASOF_libswscale_VERSION "Unknown")
-              set(HAVE_FFMPEG 1)
-            endif()
-          endif()
+          set(ALIASOF_libavutil_VERSION "Unknown")
+          set(ALIASOF_libswscale_VERSION "Unknown")
+          set(HAVE_FFMPEG 1)
         endif()
-      endif()
-    endif(FFMPEG_INCLUDE_DIR)
-    if(HAVE_FFMPEG)
-      set(HIGHGUI_LIBRARIES ${HIGHGUI_LIBRARIES} "${FFMPEG_LIB_DIR}/libavcodec.a"
-          "${FFMPEG_LIB_DIR}/libavformat.a" "${FFMPEG_LIB_DIR}/libavutil.a"
-          "${FFMPEG_LIB_DIR}/libswscale.a")
-      ocv_include_directories(${FFMPEG_INCLUDE_DIR})
+      endif(FFMPEG_INCLUDE_DIR)
+      if(HAVE_FFMPEG)
+        set(HIGHGUI_LIBRARIES ${HIGHGUI_LIBRARIES}
+            ${FFMPEG_CODEC_LIB} ${FFMPEG_FORMAT_LIB}
+            ${FFMPEG_UTIL_LIB} ${FFMPEG_SWSCALE_LIB})
+        ocv_include_directories(${FFMPEG_INCLUDE_DIR})
+      endif(HAVE_FFMPEG)
     endif()
-  endif(APPLE)
+  endif()
 endif(WITH_FFMPEG)
 
 # --- VideoInput/DirectShow ---
@@ -222,6 +256,7 @@ if(WITH_DSHOW)
 endif(WITH_DSHOW)
 
 # --- VideoInput/Microsoft Media Foundation ---
+ocv_clear_vars(HAVE_MSMF)
 if(WITH_MSMF)
   check_include_file(Mfapi.h HAVE_MSMF)
 endif(WITH_MSMF)
@@ -250,3 +285,8 @@ if (NOT IOS)
     set(HAVE_QTKIT YES)
   endif()
 endif()
+
+# --- Intel Perceptual Computing SDK ---
+if(WITH_INTELPERC)
+  include("${OpenCV_SOURCE_DIR}/cmake/OpenCVFindIntelPerCSDK.cmake")
+endif(WITH_INTELPERC)

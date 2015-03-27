@@ -929,7 +929,7 @@ So, the function chooses an operation mode depending on the flags and size of th
 
     * When ``DFT_COMPLEX_OUTPUT`` is set, the output is a complex matrix of the same size as input.
 
-    * When ``DFT_COMPLEX_OUTPUT`` is not set, the output is a real matrix of the same size as input. In case of 2D transform, it uses the packed format as shown above. In case of a single 1D transform, it looks like the first row of the matrix above. In case of multiple 1D transforms (when using the ``DCT_ROWS``         flag), each row of the output matrix looks like the first row of the matrix above.
+    * When ``DFT_COMPLEX_OUTPUT`` is not set, the output is a real matrix of the same size as input. In case of 2D transform, it uses the packed format as shown above. In case of a single 1D transform, it looks like the first row of the matrix above. In case of multiple 1D transforms (when using the ``DFT_ROWS``         flag), each row of the output matrix looks like the first row of the matrix above.
 
  * If the input array is complex and either ``DFT_INVERSE``     or ``DFT_REAL_OUTPUT``     are not set, the output is a complex array of the same size as input. The function performs a forward or inverse 1D or 2D transform of the whole input array or each row of the input array independently, depending on the flags ``DFT_INVERSE`` and ``DFT_ROWS``.
 
@@ -1252,11 +1252,12 @@ gemm
 ----
 Performs generalized matrix multiplication.
 
-.. ocv:function:: void gemm( InputArray src1, InputArray src2, double alpha, InputArray src3, double gamma, OutputArray dst, int flags=0 )
+.. ocv:function:: void gemm( InputArray src1, InputArray src2, double alpha, InputArray src3, double beta, OutputArray dst, int flags=0 )
 
-.. ocv:pyfunction:: cv2.gemm(src1, src2, alpha, src3, gamma[, dst[, flags]]) -> dst
+.. ocv:pyfunction:: cv2.gemm(src1, src2, alpha, src3, beta[, dst[, flags]]) -> dst
 
 .. ocv:cfunction:: void cvGEMM( const CvArr* src1, const CvArr* src2, double alpha, const CvArr* src3, double beta, CvArr* dst, int tABC=0)
+
 .. ocv:pyoldfunction:: cv.GEMM(src1, src2, alpha, src3, beta, dst, tABC=0)-> None
 
     :param src1: first multiplied input matrix that should have ``CV_32FC1``, ``CV_64FC1``, ``CV_32FC2``, or ``CV_64FC2`` type.
@@ -1996,7 +1997,7 @@ Performs the per-element multiplication of two Fourier spectrums.
 
     :param dst: output array of the same size and type as ``src1`` .
 
-    :param flags: operation flags; currently, the only supported flag is ``DFT_ROWS``, which indicates that each row of ``src1`` and ``src2`` is an independent 1D Fourier spectrum.
+    :param flags: operation flags; currently, the only supported flag is ``DFT_ROWS``, which indicates that each row of ``src1`` and ``src2`` is an independent 1D Fourier spectrum. If you do not want to use this flag, then simply add a `0` as value.
 
     :param conjB: optional flag that conjugates the second input array before the multiplication (true) or not (false).
 
